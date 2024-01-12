@@ -1,24 +1,20 @@
-import * as cdk from "aws-cdk-lib";
-import { Construct } from "constructs";
-import * as lambda from "aws-cdk-lib/aws-lambda";
-import * as apigw from "aws-cdk-lib/aws-apigateway";
-import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import { Hono } from "hono";
+import type { LambdaEvent, LambdaContext } from "hono/aws-lambda";
+import { handle } from "hono/aws-lambda";
 
-export class MyAppStack extends cdk.Stack {
-	constructor(scope: Construct, id: string, props?: cdk.StackProps) {
-		super(scope, id, props);
+type Bindings = {
+	event: LambdaEvent;
+	context: LambdaContext;
+};
 
-		const fn = new NodejsFunction(this, "lambda", {
-			entry: "lambda/index.ts",
-			handler: "handler",
-			runtime: lambda.Runtime.NODEJS_20_X,
-		});
+const app = new Hono<{ Bindings: Bindings }>();
 
-		fn.addFunctionUrl({
-			authType: lambda.FunctionUrlAuthType.NONE,
-		});
-		new apigw.LambdaRestApi(this, "myapi", {
-			handler: fn,
-		});
-	}
-}
+app.get("/", (c) => {
+	return c.json({
+		isBase64Encoded: c.env.event.isBase64Encoded,
+		awsRequestId: c.env.context.awsRequestId,
+		hello: " world",
+	});
+});
+
+export const handler = handle(app);
